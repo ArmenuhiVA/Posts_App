@@ -10,8 +10,15 @@ const server = http.createServer((req, res)=> {
     const parsedURL = url.parse(req.url, true);
     const path = parsedURL.pathname;
     const trimPath = path.replace(/^\/+|\/+$/g, '');
-    console.log(trimPath);
-    const subPath = trimPath.charAt(trimPath.length-1);
+    console.log("trimpath: ", trimPath);
+
+    let subPath = trimPath.split('/')[1] || null;
+    console.log("subPath : ", subPath);
+
+    if(subPath){
+        subPath = parseInt(subPath) || "invalid";
+    }
+
     const method = req.method.toUpperCase();
     let result = '';
 
@@ -23,7 +30,7 @@ const server = http.createServer((req, res)=> {
 
     req.on('end', () => {
         result += decoder.end();
-        if (trimPath === 'posts'){
+        if (trimPath === 'posts' && !subPath){
             switch (method) {
                 case 'POST':
                     const newPost = JSON.parse(result);
@@ -40,7 +47,6 @@ const server = http.createServer((req, res)=> {
                     })
                     res.end(JSON.stringify(posts));
             }
-
         }else if(trimPath === 'posts/' + subPath){
             let matchingPosts = [];
             switch(method){
@@ -49,13 +55,14 @@ const server = http.createServer((req, res)=> {
                     'Content-Type': "applicaton/json"
                 })
                 for(let i = 0; i < posts.length; i++){
-                    if(posts[i].id == subPath){
+                    if(posts[i].id === subPath){
                         matchingPosts.push(posts[i]);
                     }  
                 }
                 if (matchingPosts.length > 0) {
                     res.end(JSON.stringify(matchingPosts));
-                }else {
+                }
+                else {
                     res.writeHead(404, {
                         'Content-Type': 'text/plain'
                     });
@@ -64,49 +71,45 @@ const server = http.createServer((req, res)=> {
                 break;
                 case 'PUT':
                     const newPost = JSON.parse(result);
-                    if(trimPath === 'posts/' + subPath){
                         for(let i = 0; i < posts.length; i++){
-                            if(posts[i].id == subPath){
+                            if(posts[i].id === subPath){
                                 for (let key in newPost) {
                                     if (key in posts[i]) {
                                         posts[i][key] = newPost[key];
                                     }
                                 }
-                                matchingPosts.push(posts[i]);
                             }  
                         }
-                    }
-                    console.log(matchingPosts)
+                    console.log(posts);
                     res.writeHead(200,{
                         'Content-Type': "applicaton/json"
                     })
-                    if (matchingPosts.length > 0) {
-                        res.end(JSON.stringify(matchingPosts));
-                    }else {
+                    if (posts.length > 0) {
+                        res.end(JSON.stringify(posts));
+                    }
+                    else {
                         res.writeHead(404, {
                             'Content-Type': 'text/plain'
                         });
                         res.end('No posts found for the given ID');
-                    }
-                // case 'DELETE':
-                //     if(trimPath === 'posts/' + subPath){
-                //         for(let i = 0; i < posts.length; i++){
-                //             if(posts[i].id == subPath){
-                //                posts.splice(i, 1)
-                //             }  
-                //         }
-                //         console.log(posts)
-                //         res.writeHead(200,{
-                //             'Content-Type': "applicaton/json"
-                //         });
-                //         res.end(JSON.stringify(posts));
-                //     }else {
-                //         res.writeHead(404, {
-                //             'Content-Type': 'text/plain'
-                //         });
-                //         res.end('No posts found for the given ID');
-                //     }
-                    
+                    };
+                    break;
+                case 'DELETE':
+                        for(let i = 0; i < posts.length; i++){
+                            if(posts[i].id === subPath){
+                               posts.splice(i, 1);
+                               res.writeHead(200,{
+                                'Content-Type': "applicaton/json"
+                               });
+                               res.end(JSON.stringify(posts));
+                            } else {
+                                res.writeHead(404, {
+                                    'Content-Type': 'text/plain'
+                                });
+                                res.end('No posts found for the given ID');
+                            }
+                            break;
+                        } 
             }
         }else{
             res.writeHead(404);
