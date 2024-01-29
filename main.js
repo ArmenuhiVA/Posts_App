@@ -5,7 +5,6 @@ const {StringDecoder} = require('string_decoder');
 const posts = [];
 let currentId = 1;
 
-
 const server = http.createServer((req, res)=> {
     const parsedURL = url.parse(req.url, true);
     const path = parsedURL.pathname;
@@ -37,13 +36,13 @@ const server = http.createServer((req, res)=> {
                     newPost.id = currentId++;
                     posts.push(newPost);
                     res.writeHead(201, {
-                        'Content-Type': "applicaton/json"
+                    'Content-Type': "applicaton/json"
                     })
                     res.end(JSON.stringify(newPost));
                     break;
                 case 'GET': 
                     res.writeHead(200,{
-                        'Content-Type': "applicaton/json"
+                    'Content-Type': "applicaton/json"
                     })
                     res.end(JSON.stringify(posts));
             }
@@ -51,18 +50,15 @@ const server = http.createServer((req, res)=> {
             let matchingPosts = [];
             switch(method){
                 case 'GET': 
-                res.writeHead(200,{
-                    'Content-Type': "applicaton/json"
-                })
-                for(let i = 0; i < posts.length; i++){
-                    if(posts[i].id === subPath){
-                        matchingPosts.push(posts[i]);
-                    }  
-                }
-                if (matchingPosts.length > 0) {
-                    res.end(JSON.stringify(matchingPosts));
-                }
-                else {
+                
+                let post = posts.find(post => post.id === subPath);
+
+                if(post){
+                    res.writeHead(200,{
+                        'Content-Type': "applicaton/json"
+                    });
+                    res.end(JSON.stringify(post));
+                }else {
                     res.writeHead(404, {
                         'Content-Type': 'text/plain'
                     });
@@ -71,45 +67,47 @@ const server = http.createServer((req, res)=> {
                 break;
                 case 'PUT':
                     const newPost = JSON.parse(result);
-                        for(let i = 0; i < posts.length; i++){
-                            if(posts[i].id === subPath){
-                                for (let key in newPost) {
-                                    if (key in posts[i]) {
-                                        posts[i][key] = newPost[key];
-                                    }
-                                }
-                            }  
-                        }
-                    console.log(posts);
-                    res.writeHead(200,{
-                        'Content-Type': "applicaton/json"
-                    })
-                    if (posts.length > 0) {
-                        res.end(JSON.stringify(posts));
-                    }
-                    else {
+                    let postFound = false;
+                    const indexToUpdate = posts.findIndex(posts => posts.id === subPath);
+                    if(indexToUpdate === -1){
                         res.writeHead(404, {
                             'Content-Type': 'text/plain'
                         });
-                        res.end('No posts found for the given ID');
-                    };
-                    break;
+                        res.end('No post found with the given ID');
+                        break;
+                    }
+                    for (let key in newPost) {
+                        if (key in posts[indexToUpdate]) {
+                            posts[indexToUpdate][key] = newPost[key];
+                        } else {
+                            res.writeHead(404, {
+                                'Content-Type': 'text/plain'
+                            });
+                            res.end('No matching key found in the post');
+                            return;
+                        }
+                    }
+                    res.writeHead(200, {
+                        'Content-Type': 'application/json'
+                    });
+                    res.end(JSON.stringify(posts[indexToUpdate]));
+                    break;         
                 case 'DELETE':
-                        for(let i = 0; i < posts.length; i++){
-                            if(posts[i].id === subPath){
-                               posts.splice(i, 1);
-                               res.writeHead(200,{
-                                'Content-Type': "applicaton/json"
-                               });
-                               res.end(JSON.stringify(posts));
-                            } else {
-                                res.writeHead(404, {
-                                    'Content-Type': 'text/plain'
-                                });
-                                res.end('No posts found for the given ID');
-                            }
-                            break;
-                        } 
+                    const indexToDelete = posts.findIndex(post => post.id === subPath );
+                    if(indexToDelete === -1){
+                        res.writeHead(404, {
+                            'Content-Type': 'text/plain'
+                        });
+                        res.end('No post found with the given ID');
+                        break;
+                    }else{
+                        posts.splice(indexToDelete, 1);
+                    }
+                    res.writeHead(200,{
+                        'Content-Type': "applicaton/json"
+                    });
+                    res.end(JSON.stringify(posts));  
+                    break;                   
             }
         }else{
             res.writeHead(404);
