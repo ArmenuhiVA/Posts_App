@@ -1,6 +1,7 @@
 const http = require('http');
 const url = require('url');
 const {StringDecoder} = require('string_decoder');
+// const fs = require('fs');
 
 const posts = [];
 let currentId = 1;
@@ -47,67 +48,60 @@ const server = http.createServer((req, res)=> {
                     res.end(JSON.stringify(posts));
             }
         }else if(trimPath === 'posts/' + subPath){
-            let matchingPosts = [];
+            const indexToUpdate = posts.findIndex(posts => posts.id === subPath);
+            if(indexToUpdate === -1){
+                res.writeHead(404, {
+                    'Content-Type': 'text/plain'
+                });
+                res.end('No post found with the given ID')
+            }
             switch(method){
                 case 'GET': 
-                
-                let post = posts.find(post => post.id === subPath);
-
-                if(post){
                     res.writeHead(200,{
                         'Content-Type': "applicaton/json"
                     });
-                    res.end(JSON.stringify(post));
-                }else {
-                    res.writeHead(404, {
-                        'Content-Type': 'text/plain'
-                    });
-                    res.end('No posts found for the given ID');
-                }
+                    res.end(JSON.stringify(posts[indexToUpdate]));
                 break;
                 case 'PUT':
-                    const newPost = JSON.parse(result);
-                    let postFound = false;
-                    const indexToUpdate = posts.findIndex(posts => posts.id === subPath);
-                    if(indexToUpdate === -1){
-                        res.writeHead(404, {
-                            'Content-Type': 'text/plain'
-                        });
-                        res.end('No post found with the given ID');
-                        break;
-                    }
-                    for (let key in newPost) {
-                        if (key in posts[indexToUpdate]) {
-                            posts[indexToUpdate][key] = newPost[key];
-                        } else {
-                            res.writeHead(404, {
-                                'Content-Type': 'text/plain'
-                            });
-                            res.end('No matching key found in the post');
-                            return;
-                        }
-                    }
+                    const newPutPost = JSON.parse(result);
+                    posts[indexToUpdate] = {...posts[indexToUpdate], ... newPutPost, id: posts[indexToUpdate].id};
+                    res.writeHead(200, {
+                        'Content-Type': 'application/json'
+                    });
                     res.writeHead(200, {
                         'Content-Type': 'application/json'
                     });
                     res.end(JSON.stringify(posts[indexToUpdate]));
-                    break;         
-                case 'DELETE':
-                    const indexToDelete = posts.findIndex(post => post.id === subPath );
-                    if(indexToDelete === -1){
-                        res.writeHead(404, {
-                            'Content-Type': 'text/plain'
-                        });
-                        res.end('No post found with the given ID');
-                        break;
-                    }else{
-                        posts.splice(indexToDelete, 1);
+                    break; 
+                case 'PATCH':
+                    const newPost = JSON.parse(result);
+                    for (let key in newPost) {
+                        if (key in posts[indexToUpdate]) {
+                            if(key === "id"){
+                                continue;
+                            }
+                            posts[indexToUpdate][key] = newPost[key]; 
+                        } 
+                        // else {
+                        //     res.writeHead(404, {
+                        //         'Content-Type': 'text/plain'
+                        //     });
+                        //     res.end(`The key "${key}" not found in the post`);
+                        //     return;
+                        // }
                     }
                     res.writeHead(200,{
                         'Content-Type': "applicaton/json"
                     });
+                    res.end(JSON.stringify(posts[indexToUpdate]));
+                    break;         
+                case 'DELETE':
+                    posts.splice(indexToUpdate, 1);
+                    res.writeHead(200,{
+                        'Content-Type': "applicaton/json"
+                    });
                     res.end(JSON.stringify(posts));  
-                    break;                   
+                    break;                  
             }
         }else{
             res.writeHead(404);
