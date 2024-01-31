@@ -1,7 +1,45 @@
 const http = require('http');
 const url = require('url');
 const {StringDecoder} = require('string_decoder');
-// const fs = require('fs');
+
+const fs = require('fs');
+const postsFilePath = "./posts.json";
+
+const getPosts = () => {
+    let posts = [];
+    return new Promise((resolve, reject) => {
+        fs.readFile(postsFilePath, (err, data) => {
+            if(err){
+                console.error(err.message);
+                reject(err);
+            }
+            posts = (data.toString());
+            resolve(JSON.parse(posts));
+        })
+    })
+}
+
+const createPost = (post) => {
+    return new Promise((resolve, reject) => {
+        getPosts().then(data => {
+            if(!data.length){
+                post.id = 1;
+            }else{
+                let lastChar = data[data.length-1].id;
+                post.id = ++lastChar;
+            }
+            data.push(post);
+            fs.writeFile(postsFilePath, JSON.stringify(data), (err) => {
+                if(err){
+                    console.error(err.message);
+                    reject(err);
+                }
+                resolve();
+            })
+        }) 
+    })
+}
+
 
 const posts = [];
 let currentId = 1;
@@ -40,12 +78,24 @@ const server = http.createServer((req, res)=> {
                     'Content-Type': "applicaton/json"
                     })
                     res.end(JSON.stringify(newPost));
+                    createPost(newPost).then((data) => {
+                        // getPosts().then((data) => {
+                        //     console.log(data)
+                        // }).catch(err => {
+                        //     console.error(err)
+                        // });
+                    })
                     break;
                 case 'GET': 
                     res.writeHead(200,{
                     'Content-Type': "applicaton/json"
                     })
                     res.end(JSON.stringify(posts));
+                    getPosts().then((posts) => {
+                        console.log(posts)
+                    }).catch(err => {
+                        console.error(err)
+                    });
             }
         }else if(trimPath === 'posts/' + subPath){
             const indexToUpdate = posts.findIndex(posts => posts.id === subPath);
