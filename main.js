@@ -72,18 +72,11 @@ const server = http.createServer((req, res)=> {
             switch (method) {
                 case 'POST':
                     const newPost = JSON.parse(result);
-                    newPost.id = currentId++;
-                    posts.push(newPost);
-                    res.writeHead(201, {
-                    'Content-Type': "applicaton/json"
-                    })
-                    res.end(JSON.stringify(newPost));
                     createPost(newPost).then((data) => {
-                        // getPosts().then((data) => {
-                        //     console.log(data)
-                        // }).catch(err => {
-                        //     console.error(err)
-                        // });
+                        res.writeHead(201, {
+                            'Content-Type': "applicaton/json"
+                            })
+                            res.end(JSON.stringify(newPost));
                     })
                     break;
                 case 'GET': 
