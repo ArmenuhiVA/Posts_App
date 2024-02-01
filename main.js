@@ -87,15 +87,15 @@ const server = http.createServer((req, res)=> {
                     })
                     break;
                 case 'GET': 
-                    res.writeHead(200,{
-                    'Content-Type': "applicaton/json"
-                    })
-                    res.end(JSON.stringify(posts));
                     getPosts().then((posts) => {
-                        console.log(posts)
+                        console.log(posts);
+                        res.writeHead(200,{
+                            'Content-Type': "applicaton/json"
+                            })
+                            res.end(JSON.stringify(posts));
                     }).catch(err => {
                         console.error(err)
-                    });
+                    });   
             }
         }else if(trimPath === 'posts/' + subPath){
             const indexToUpdate = posts.findIndex(posts => posts.id === subPath);
