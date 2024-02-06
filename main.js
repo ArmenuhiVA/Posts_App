@@ -1,169 +1,12 @@
 const http = require('http');
 const url = require('url');
 const { StringDecoder } = require('string_decoder')
-const fs = require('fs');
+
 const { resolve } = require('path');
+const {postsSchema, patchSchema,  validate } = require('./validations/validation.js');
+const {getPosts, createPost, deletePost, updatePost} = require('./controllers/postControllers.js');
 
-const postsFilePath = "./posts.json";
 
-const postsSchema = {
-    author: {
-        type: "object",
-        properties: {
-            firstName: {
-                type: "string",
-                maxLength: 15,
-                required: true
-            },
-            lastName: {
-                type: "string",
-                maxLength: 15,
-                required: true
-            },
-            age: {
-                type: "number",
-                min: 18,
-                max: 100,
-                required: false
-            }
-        },
-        required: true 
-    },
-    title : {
-        type: "string",
-        maxLength: 40,
-        minLength: 5,
-        required: true
-    },
-    subtitle: {
-        type: "string",
-        maxLength: 50,
-        minLength: 5,
-        require: false
-    },
-};
-
-const validate =(obj, schema) => {
-    let isValid = true;
-    if(typeof obj !== "object"){
-        return false;
-    }
-    const props = Object.keys(schema);
-    props.forEach(prop => {
-            if(!obj.hasOwnProperty(prop) && !schema[prop].required){
-               return;
-            }else
-            if(!obj.hasOwnProperty(prop) && schema[prop].required){
-                isValid = false;
-                console.log(`Your object doesn't have '${prop}' propery and this is required`)
-            }else 
-            if(typeof obj[prop] !== schema[prop].type){
-                isValid = false;
-                console.log(`The "${obj[prop]}" type is not ${schema[prop].type} `)
-            }else
-           if(typeof obj[prop] === "string"){
-                 if(obj[prop].length > schema[prop].maxLength || obj[prop].length < schema[prop].minLength){
-                    isValid = false;
-                    if(obj[prop].length > schema[prop].maxLength){
-                        console.log(`The ${obj[prop]} length is very long, the required max length is ${schema[prop].maxLength} character`)
-                    }else if(obj[prop].length < schema[prop].minLength){
-                        console.log(`The ${obj[prop]} length is very short, the required min length is ${schema[prop].minLength} character`)
-                    }
-                 }
-           }else
-           if(typeof obj[prop] === "number"){
-                if(obj[prop] > schema[prop].max || obj[prop] < schema[prop].min){
-                    isValid = false;
-                }
-                if(obj[prop] > schema[prop].max ){
-                    console.log(`You are very old`)
-                }else if(obj[prop] < schema[prop].min){
-                    console.log(`You are very young`)                
-                }
-           }else if(typeof obj[prop] === "object"){
-               validate(obj[prop], schema[prop].properties);
-           }
-    })
-  return isValid;  
-}
-let post = {
-    author: {
-        firstName: "Jhone",
-        lastName: "Smith",
-        age: 50
-    },
-    // title: "title",
-    // subtitle: "subtitle"
-};
-console.log(validate(post, postsSchema));
-
-const getPosts = () => {
-  let posts = [];
-  return new Promise((resolve, reject) => {
-    fs.readFile(postsFilePath, (err, data) => {
-      if (err) {
-        console.error(err.message);
-        reject(err);
-      }
-      posts = data.toString('utf8');
-      resolve(JSON.parse(posts));
-    })
-  })
-}
-
-const createPost = (post) => {
-  return new Promise((resolve, reject) => {
-    getPosts().then(data => {
-      const length = data.length;
-      let id;
-      if (!length) {
-        id = 1;
-      } else {
-        id = data[length - 1].id + 1;
-      }
-      post.id = id;
-      data.push(post)
-      fs.writeFile(postsFilePath, JSON.stringify(data), (err) => {
-        if (err) {
-          console.error(err.message);
-          reject(err);
-        }
-        resolve(post);
-      })
-    })
-  })
-}
-
-const updatePost = (currentPosts, index, newData, isPatch) => {
-  if (!isPatch) {
-    currentPosts[index] = {...newData, id: currentPosts[index].id}
-  } else {
-    currentPosts[index] = {...currentPosts[index], ...newData}
-  }
-
-  return new Promise((resolve, reject) => {
-    fs.writeFile(postsFilePath, JSON.stringify(currentPosts), (err) => {
-      if (err) {
-        console.error(err.message);
-        reject(err);
-      }
-      resolve(currentPosts[index]);
-    })
-  })
-}
-
-const deletePost = (receivedPosts, postIndex) => {
-  receivedPosts.splice(postIndex, 1)
-  return new Promise((resolve, reject) => {
-    fs.writeFile(postsFilePath, JSON.stringify(receivedPosts), (err) => {
-      if (err) {
-        console.error(err.message);
-        reject(err);
-      }
-      resolve()
-    })  
-  })
-}
 
 const server = http.createServer((req, res) => {
   const parsedUrl = url.parse(req.url, true);
@@ -190,6 +33,7 @@ const server = http.createServer((req, res) => {
   req.on('data', (data) => {
     console.log("data", data)
     result += decoder.write(data);
+    // console.log(result)
   })
 
   req.on('end', () => {
@@ -200,7 +44,18 @@ const server = http.createServer((req, res) => {
         case 'POST':
           console.log("enter POST")
           const newPost = JSON.parse(result);
-          console.log(newPost)
+          const validation = validate(newPost, postsSchema);
+          // console.log("validation:", validation)
+          if(!validation.isValid) {
+            res.writeHead(400, {
+              'Content-Type': 'application/json'
+            })
+            res.end(JSON.stringify({
+               message: validation.error.message
+            }));
+            return;
+          }
+          console.log(validation)
           createPost(newPost).then(createdPost =>{
             console.log("createdPost", createdPost);
             res.writeHead(201, {
@@ -216,7 +71,6 @@ const server = http.createServer((req, res) => {
               message: "Something went wrong."
             }));
           })
-
           break;
         case 'GET':
           console.log('enter Get')
@@ -258,6 +112,17 @@ const server = http.createServer((req, res) => {
               case 'PUT':
               case 'PATCH':
                 const updatedPost = JSON.parse(result);
+                const validationSchema = (method ==="PUT") ? postsSchema : patchSchema;
+                const validation = validate(updatedPost, validationSchema);
+                if(!validation.isValid) {
+                  res.writeHead(400, {
+                    'Content-Type': 'application/json'
+                  })
+                  res.end(JSON.stringify({
+                    message: validation.error.message
+                 }));
+                  return;
+                };
                 updatePost(receivedPosts, postIndex, updatedPost, method === "PATCH").then(post => {
                   console.log("post updated", post);
                   res.writeHead(200, {
@@ -270,8 +135,8 @@ const server = http.createServer((req, res) => {
                     'Content-Type': 'application/json'
                   })
                   res.end(JSON.stringify({
-                    message: "Something went wrong."
-                  }));
+                    message: validation.error.message
+                 }));;
                 })
                 break;
               case "DELETE":
