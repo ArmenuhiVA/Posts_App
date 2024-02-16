@@ -1,4 +1,5 @@
 const fs = require('fs');
+const { off } = require('process');
 const postsFilePath = "./posts.json";  
 
 const getPosts = () => {
@@ -13,6 +14,33 @@ const getPosts = () => {
         resolve(JSON.parse(posts));
       })
     })
+  }
+
+  const getPostsByLimit = async (offset, limit, search) => {
+    let fielteredPosts = [];
+     function loopThrough(obj){
+      for(let key in obj){
+        if(typeof obj[key] === 'object'){
+          loopThrough(obj[key])
+        }else{
+          if((key != 'age' && obj[key] != 'age') && search.test(key.toString()) || search.test(obj[key].toString())){
+            fielteredPosts.push(obj);
+            return 
+          }
+        }
+      }
+     }
+    try {
+      const posts = await getPosts();
+      posts.forEach(obj => {
+         loopThrough(obj)
+        
+      });
+      console.log(fielteredPosts)
+      return fielteredPosts.splice(offset, limit)
+    } catch (err) {
+      throw new Error(`Not able to get posts with offset ${offset} and limit ${limit}`)
+    }
   }
   
   const createPost = (post) => {
@@ -73,6 +101,7 @@ const getPosts = () => {
     getPosts,
     createPost,
     updatePost,
-    deletePost
+    deletePost,
+    getPostsByLimit
   }
   
